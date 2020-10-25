@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.5.1/jquery.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            height: 90vh;
+            width: 100vw;
+
+        }
+
+        .chart {
+            height: 100vh;
+            flex: 3;
+            margin: auto;
+            background-color: rgb(240, 245, 245);
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .info {
+            height: 90vh;
+            flex: 2;
+            background-color: antiquewhite;
+            padding: 20px;
+            overflow: scroll;
+        }
+
+        table {
+
+            margin-right: 20px;
+            border: 2px solid rgb(223, 213, 213);
+            caption-side: bottom;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            border: thin double rgb(211, 211, 211);
+            padding: 3px;
+            text-align: center;
+            font-size: 7px;
+        }
+
+        /* th {
+            background-color: #a4ac17;
+
+
+        } */
+
+        caption {
+            font-style: italic;
+            padding-top: 8px;
+        }
+
+
+
+        /* tr:nth-child(even) {
+            background-color: rgb(146, 137, 137);
+        }
+
+        tr:nth-child(odd) {
+            background-color: rgb(59, 118, 145);
+        } */
+        .it{
+          
+            margin: 16px;
+            padding: 1px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="flex">
+
+        <div id="chart" class="chart"></div>
+
+        <div class="info">
+
+
+
+
+
+        </div>
+
+       
+    </div>
+
+
+</body>
+<script>
+    let data;
+
+    let format = d3.timeFormat("%m-%Y");
+
+    window.addEventListener("resize", () => {
+        dchart();
+
+    });
+
+
+    function dchart() {
+        let ydata = []
+        let xdata = []
+        let circledata = []
+
+        let parseDate = d3.timeParse("%Y-%m");
+        data.forEach((d) => {
+            ydata.push(d.orchestra);
+            xdata.push(d.season);
+            let have = 0;
+            circledata.forEach((d2) => {
+                if (d.orchestra == d2.orchestra && d.season == d2.season) {
+                    d2["num"]++;
+                    d2.data.push(d)
+                    have = 1;
+                }
+            })
+            if (have == 0) {
+                circledata.push({ orchestra: d.orchestra, season: d.season, num: 1, data: [d] })
+            }
+        });
+
+        ydata = Array.from(new Set(ydata));
+        xdata = Array.from(new Set(xdata));
+
+        console.log(xdata)
+        xdata = xdata.map(d => {
+            return parseDate(d);
+        })
+        console.log(xdata)
+
+        let margin = { top: 40, right: 40, bottom: 60, left: 60 };
+
+        let width = document.getElementById("chart").offsetWidth - margin.left - margin.right,
+            height = document.getElementById("chart").offsetHeight - margin.top - margin.bottom;
+
+
+        d3.select("#chart").select("svg").remove();
+        let svg = d3.select("#chart").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+
+        let x = d3.scaleTime()
+            .range([0, width])
+            .domain(d3.extent(xdata));
+
+        let xAxis = d3.axisBottom()
+            .scale(x)
+
+        let gxAxis = svg.append("g")
+            .attr("class", "x-axis axis")
+            .attr("transform", "translate(0," + height + ")")
+            .call(xAxis)
+
+
+
+
+
+        let y = d3.scaleBand()
+            .domain(ydata)
+            .range([0, height])
+            .padding(0.3);
+
+
+        let yAxis = svg => svg
+            .call(d3.axisRight(y)
+                .tickSize(width)
+                )
+            .call(g => g.select(".domain")
+                .remove())
+            .call(g => g.selectAll(".tick:not(:first-of-type) line")
+                .attr("stroke-opacity", .9)
+                .attr("stroke-dasharray", "2,2"))
+            .call(g => g.selectAll(".tick text")
+                .attr("x", -50)
+                .attr("dy", -y.step()/2))
+
+
+        let gyAxis = svg.append("g")
+            .attr("class", "x-axis axis")
+            .call(yAxis)
+            .selectAll("text")
+            .attr("transform", "rotate(15)");
+
+        console.log(circledata)
+
+        svg.selectAll("circle")
+            .data(circledata)
+            .enter()
+            .append("circle")
+            .attr('cx', d => x(parseDate(d["season"])) * .85 + 0.05 * width)
+            .attr('cy', d => y(d["orchestra"]))
+            .attr('r', d => 10 + d["num"] / 4)
+            .attr('fill', "steelblue")
+            .attr("opacity", .7)
+            .on("mouseover", function (_, _d) {
+                console.log(_d)
+                d3.select(this).style("fill", "red");
+                $(".info").html(
+                    `
+${_d.data.map(d => `
+    <div class="it">
+
+<h1>General Info:</h1> 
+<table>
+<tr>
+<th>Orchestra</th>
+<th>season</th>
+</tr>
+<tr>
+<td >${d.orchestra}</td>
+<td >${d.season}</td>
+</tr>
+
+</table>
+<h1>Concerts Info:</h1> 
+<table>
+
+<tr>
+    <!-- 第一行是表头 -->
+    <th>Date</th>
+    <th>Location</th>
+    <th>Time</th>
+    <th>Venue</th>
+    <th>eventType</th>
+</tr>
+${d.concerts.map(d2 => `
+    <tr>
+    <td>${format(new Date(d2.Date))}</td>
+    <td >${d2.Location}</td>
+    <td >${d2.Time}</td>
+    <td >${d2.Venue}</td>
+    <td>${d2.eventType}</td>
+    </tr>
+`).join('')}
+</table>
+
+<h1> Works Info:</h1>
+
+
+<table>
+<tr>
+    <!-- 第一行是表头 -->
+    <th>composerName</th>
+    <th>conductorName</th>
+
+    <th>workTitle</th>
+
+</tr>
+${d.works.map(d2 => `
+    <tr>
+    <td>${d2.composerName}</td>
+    <td >${d2.conductorName}</td>
+    <td >${d2.workTitle}</td>
+    </tr>
+`).join('')}
+</table>
+
+            
+</div>
+`).join('')}
+
+`
+                )
+            })
+            .on("mouseout", function () {
+                d3.select(this).style("fill", "steelblue")
+            });
+
+
+    }
+
+
+
+
+
+    let promises = [
+        d3.json("2004-05_TO_2010-11.json"),
+        d3.json("2011-12_TO_NOW.json")
+    ];
+    Promise.all(promises).then(([data_2004, data_2011]) => {
+        data = [...data_2004.programs, ...data_2011.programs]
+        console.log(data)
+        dchart();
+
+    });
+
+</script>
+
+</html>
